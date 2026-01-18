@@ -1,0 +1,2 @@
+account,amount,currency,title,note,date,income,type,category name,subcategory name,color,icon,emoji,budget,objective
+Bank,-56.8,USD,Metro,,2025-12-16 23:30:21.000,false,null,Groceries,,0xff4caf50,groceries.png,,,
