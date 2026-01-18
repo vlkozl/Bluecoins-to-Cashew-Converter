@@ -62,5 +62,3 @@ src/Verify.ps1 -bluecoinsFile transactions.html -cashewFile bluecoins_to_cashew.
 ## 📢 Feedback & Contributions
 
 Feel free to use, adjust to your needs, or open issues or pull requests for bugs, improvements, or new features.
-
-See `copilot-instructions.md` for detailed development guidelines.
