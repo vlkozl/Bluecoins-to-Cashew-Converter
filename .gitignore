@@ -2,7 +2,9 @@
 archive/
 bluecoins/
 cashew/
+categories/
 
 # IDE and editor settings
 .claude/
 .vscode/
+docs/

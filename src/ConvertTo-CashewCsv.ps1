@@ -9,47 +9,56 @@
 .PARAMETER cashewFile
     The filename for the converted Cashew CSV file (will be saved to .\cashew folder).
 .EXAMPLE
-    .\Convert.ps1 -bluecoinsFile "transactions.html" -cashewFile "cashew_import.csv"
+    .\ConvertTo-CashewCsv.ps1 -bluecoinsFile "transactions.html" -cashewFile "cashew_import.csv"
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [ArgumentCompleter({
-        param($cmd, $param, $word)
-        Get-ChildItem -Path ".\bluecoins\" -Filter "*.html" -ErrorAction SilentlyContinue |
+            param($cmd, $param, $word)
+            Get-ChildItem -Path ".\bluecoins\" -Filter "*.html" -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -like "$word*" } |
             ForEach-Object { $_.Name }
-    })]
+        })]
     [string]$bluecoinsFile,
 
     [Parameter(Mandatory = $true)]
     [ArgumentCompleter({
-        param($cmd, $param, $word)
-        Get-ChildItem -Path ".\cashew\" -Filter "*.csv" -ErrorAction SilentlyContinue |
+            param($cmd, $param, $word)
+            Get-ChildItem -Path ".\cashew\" -Filter "*.csv" -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -like "$word*" } |
             ForEach-Object { $_.Name }
-    })]
+        })]
     [string]$cashewFile
 )
 
 Import-Module (Join-Path $PSScriptRoot "Common.psm1") -Force
 
+$BluecoinsDir  = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\bluecoins"))
+$CashewDir     = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\cashew"))
+$CategoriesDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\categories"))
+
+Initialize-Directory -Path $BluecoinsDir
+Initialize-Directory -Path $CashewDir
+Initialize-Directory -Path $CategoriesDir
+
 # Construct full paths
-$bluecoinsFile = Join-Path ".\bluecoins" $bluecoinsFile
-$cashewFile = Join-Path ".\cashew" $cashewFile
+$bluecoinsFile = Join-Path $BluecoinsDir $bluecoinsFile
+$cashewFile = Join-Path $CashewDir $cashewFile
 
 # CSV delimiter used in Cashew
 $csvDelimiter = ','
 
 # Load category mapping
-$mappingFile = Join-Path ".\template" "category-mapping.csv"
+$mappingFile = Join-Path $CategoriesDir "category-mapping.csv"
 $categoryMapping = @{}
 if (Test-Path $mappingFile) {
     Import-Csv $mappingFile | ForEach-Object {
         $key = "$($_.bluecoins_type)|$($_.bluecoins_subcategory)"
         $categoryMapping[$key] = $_
     }
-} else {
+}
+else {
     Write-Warning "Category mapping file not found: $mappingFile. Categories will not be mapped."
 }
 
@@ -87,6 +96,14 @@ foreach ($match in $regexMatches) {
     $cleanAmountStr = ConvertTo-BluecoinsAmount $amountStr
     $amountVal = $cleanAmountStr -as [double]
 
+    if ($null -eq $amountVal) {
+        Write-Warning "Could not parse amount '$amountStr' (row: date='$dateStr', name='$name', type='$type'). Row will have empty amount and income='false'."
+        $response = Read-Host "Continue processing? [Y/N]"
+        if ($response -notin @('Y', 'y', '')) {
+            throw "Aborted by user due to invalid amount."
+        }
+    }
+
     # Determine Income (true/false)
     $income = if ($amountVal -gt 0) { "true" } else { "false" }
 
@@ -100,7 +117,8 @@ foreach ($match in $regexMatches) {
         $map = $categoryMapping[$mapKey]
         $categoryName = $map.cashew_category
         $subcategoryName = $map.cashew_subcategory
-    } else {
+    }
+    else {
         Write-Warning "No mapping found for: type='$type' category='$category'. Leaving category empty."
         $categoryName = ""
         $subcategoryName = $category
@@ -108,21 +126,21 @@ foreach ($match in $regexMatches) {
 
     # Construct object mapping to template
     $cashewTransaction = [PSCustomObject]@{
-        'account' = $account
-        'amount' = $cleanAmountStr
-        'currency' = $currency
-        'title' = $name
-        'note' = $notes
-        'date' = $outputDate
-        'income' = $income
-        'type' = "null"
-        'category name' = $categoryName
+        'account'          = $account
+        'amount'           = $cleanAmountStr
+        'currency'         = $currency
+        'title'            = $name
+        'note'             = $notes
+        'date'             = $outputDate
+        'income'           = $income
+        'type'             = "null"
+        'category name'    = $categoryName
         'subcategory name' = $subcategoryName
-        'color' = ""
-        'icon' = ""
-        'emoji' = ""
-        'budget' = ""
-        'objective' = ""
+        'color'            = ""
+        'icon'             = ""
+        'emoji'            = ""
+        'budget'           = ""
+        'objective'        = ""
     }
 
     $cashewData.Add($cashewTransaction)
@@ -131,4 +149,6 @@ foreach ($match in $regexMatches) {
 # Export to CSV w/ Comma delimiter
 $cashewData | Export-Csv -Path $cashewFile -NoTypeInformation -Delimiter $csvDelimiter -Encoding UTF8 -UseQuotes Never
 
-Write-Host "Conversion complete. Processed $($cashewData.Count) transactions. Output saved to $cashewFile" -ForegroundColor Green
+Write-Host "Conversion complete." -ForegroundColor Green
+Write-Host "Processed $($cashewData.Count) transactions." -ForegroundColor Green
+Write-Host "Output saved to $cashewFile" -ForegroundColor Green

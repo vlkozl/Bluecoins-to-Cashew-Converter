@@ -41,6 +41,21 @@ function ConvertTo-BluecoinsAmount {
     ($AmountStr -replace '\s+', '').Replace('.', '').Replace(',', '.')
 }
 
+function Initialize-Directory {
+<#
+.SYNOPSIS
+    Creates a directory if it does not already exist.
+.PARAMETER Path
+    The full path to the directory to ensure exists.
+.EXAMPLE
+    Initialize-Directory -Path "$PSScriptRoot\..\categories"
+#>
+    param([string]$Path)
+    if (-not (Test-Path $Path)) {
+        New-Item -ItemType Directory -Path $Path | Out-Null
+    }
+}
+
 function Assert-FileExists {
 <#
 .SYNOPSIS
@@ -54,9 +69,8 @@ function Assert-FileExists {
 #>
     param([string]$Path, [string]$Label = "File")
     if (-not (Test-Path $Path)) {
-        Write-Error "$Label '$Path' not found."
-        exit 1
+        throw "$Label '$Path' not found."
     }
 }
 
-Export-ModuleMember -Function Get-BluecoinsRows, ConvertTo-BluecoinsAmount, Assert-FileExists
+Export-ModuleMember -Function Get-BluecoinsRows, ConvertTo-BluecoinsAmount, Assert-FileExists, Initialize-Directory

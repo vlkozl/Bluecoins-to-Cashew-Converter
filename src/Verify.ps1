@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Verifies the conversion statistics between Bluecoins HTML export and Cashew CSV import. 
+    Verifies the conversion statistics between Bluecoins HTML export and Cashew CSV import.
 .DESCRIPTION
     This script reads a Bluecoins HTML export file and a Cashew CSV import file,
     compares the number of transactions and Transactions amounts, and checks for income logic consistency.
@@ -15,29 +15,34 @@
 param(
     [Parameter(Mandatory = $true)]
     [ArgumentCompleter({
-        param($cmd, $param, $word)
-        Get-ChildItem -Path ".\bluecoins\" -Filter "*.html" -ErrorAction SilentlyContinue |
+            param($cmd, $param, $word)
+            Get-ChildItem -Path ".\bluecoins\" -Filter "*.html" -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -like "$word*" } |
             ForEach-Object { $_.Name }
-    })]
+        })]
     [string]$bluecoinsFile,
 
     [Parameter(Mandatory = $true)]
     [ArgumentCompleter({
-        param($cmd, $param, $word)
-        Get-ChildItem -Path ".\cashew\" -Filter "*.csv" -ErrorAction SilentlyContinue |
+            param($cmd, $param, $word)
+            Get-ChildItem -Path ".\cashew\" -Filter "*.csv" -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -like "$word*" } |
             ForEach-Object { $_.Name }
-    })]
+        })]
     [string]$cashewFile
 )
 
-
 Import-Module (Join-Path $PSScriptRoot "Common.psm1") -Force
 
+$BluecoinsDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\bluecoins"))
+$CashewDir    = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\cashew"))
+
+Initialize-Directory -Path $BluecoinsDir
+Initialize-Directory -Path $CashewDir
+
 # Construct full paths
-$bluecoinsFile = Join-Path ".\bluecoins" $bluecoinsFile
-$cashewFile = Join-Path ".\cashew" $cashewFile
+$bluecoinsFile = Join-Path $BluecoinsDir $bluecoinsFile
+$cashewFile = Join-Path $CashewDir $cashewFile
 
 Assert-FileExists -Path $bluecoinsFile -Label "Bluecoins file"
 Assert-FileExists -Path $cashewFile -Label "Cashew file"
@@ -96,7 +101,7 @@ foreach ($row in $csvData) {
             if ($incomeErrorCount -lt 3) { Write-Warning "Income logic error row: Amount=$amount, Income=$($row.income)" }
         }
         if ($amount -le 0 -and $row.income -ne "false") {
-            $incomeErrorCount++ 
+            $incomeErrorCount++
             if ($incomeErrorCount -lt 3) { Write-Warning "Income logic error row: Amount=$amount, Income=$($row.income)" }
         }
     }

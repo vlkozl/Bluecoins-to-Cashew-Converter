@@ -34,10 +34,13 @@ param(
 
 Import-Module (Join-Path $PSScriptRoot "Common.psm1") -Force
 
+$BluecoinsDir  = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\bluecoins"))
+$CategoriesDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\categories"))
+Initialize-Directory -Path $CategoriesDir
+
 # Construct full paths
-$bluecoinsFile = Join-Path ".\bluecoins" $bluecoinsFile
-$outDir = ".\"
-$categoriesFile = Join-Path $outDir $categoriesFile
+$bluecoinsFile  = Join-Path $BluecoinsDir  $bluecoinsFile
+$categoriesFile = Join-Path $CategoriesDir $categoriesFile
 
 Assert-FileExists -Path $bluecoinsFile -Label "Input file"
 
