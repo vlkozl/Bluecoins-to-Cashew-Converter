@@ -38,7 +38,11 @@ function ConvertTo-BluecoinsAmount {
     [decimal](ConvertTo-BluecoinsAmount "-1.000,50")  # returns -1000.50
 #>
     param([string]$AmountStr)
-    ($AmountStr -replace '\s+', '').Replace('.', '').Replace(',', '.')
+    $clean = ($AmountStr -replace '\s+', '')
+    if ($clean.Contains('.') -and -not $clean.Contains(',')) {
+        Write-Warning "Amount '$AmountStr' has a dot but no comma — expected European format (e.g. '1.000,50'). If '.' is the decimal separator here, the converted value will be wrong."
+    }
+    $clean.Replace('.', '').Replace(',', '.')
 }
 
 function Initialize-Directory {
