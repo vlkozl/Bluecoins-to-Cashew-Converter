@@ -1,0 +1,8 @@
+# processing folders
+archive/
+bluecoins/
+cashew/
+
+# IDE and editor settings
+.claude/
+.vscode/
