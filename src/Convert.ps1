@@ -11,11 +11,28 @@
 .EXAMPLE
     .\Convert.ps1 -bluecoinsFile "transactions.html" -cashewFile "cashew_import.csv"
 #>
+[CmdletBinding()]
 param(
-    [CmdletBinding()]
-    [Parameter(Mandatory = $true)] $bluecoinsFile,
-    [Parameter(Mandatory = $true)] $cashewFile
+    [Parameter(Mandatory = $true)]
+    [ArgumentCompleter({
+        param($cmd, $param, $word)
+        Get-ChildItem -Path ".\bluecoins\" -Filter "*.html" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like "$word*" } |
+            ForEach-Object { $_.Name }
+    })]
+    [string]$bluecoinsFile,
+
+    [Parameter(Mandatory = $true)]
+    [ArgumentCompleter({
+        param($cmd, $param, $word)
+        Get-ChildItem -Path ".\cashew\" -Filter "*.csv" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like "$word*" } |
+            ForEach-Object { $_.Name }
+    })]
+    [string]$cashewFile
 )
+
+Import-Module (Join-Path $PSScriptRoot "Common.psm1") -Force
 
 # Construct full paths
 $bluecoinsFile = Join-Path ".\bluecoins" $bluecoinsFile
@@ -24,39 +41,36 @@ $cashewFile = Join-Path ".\cashew" $cashewFile
 # CSV delimiter used in Cashew
 $csvDelimiter = ','
 
-# Check if input file exists
-if (-not (Test-Path $bluecoinsFile)) {
-    Write-Error "Input file '$bluecoinsFile' not found."
-    exit 1
+# Load category mapping
+$mappingFile = Join-Path ".\template" "category-mapping.csv"
+$categoryMapping = @{}
+if (Test-Path $mappingFile) {
+    Import-Csv $mappingFile | ForEach-Object {
+        $key = "$($_.bluecoins_type)|$($_.bluecoins_subcategory)"
+        $categoryMapping[$key] = $_
+    }
+} else {
+    Write-Warning "Category mapping file not found: $mappingFile. Categories will not be mapped."
 }
+
+Assert-FileExists -Path $bluecoinsFile -Label "Input file"
 
 # Read content
 $content = Get-Content $bluecoinsFile -Raw -Encoding UTF8
 
-# Regex to parse rows
-# Table structure: <tr>...<td>Date</td><td>Type</td><td>Name</td><td>Amount</td><td>Currency</td><td>Category</td><td>Account</td><td class="notes">Notes</td>...</tr>
-$pattern = '(?s)<tr>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td.*?>(.*?)</td>\s*</tr>'
+$regexMatches = Get-BluecoinsRows -Content $content
 
-$regexMatches = [regex]::Matches($content, $pattern)
-
-$cashewData = @()
+$cashewData = [System.Collections.Generic.List[object]]::new()
 
 foreach ($match in $regexMatches) {
-    # Skip header row
-    if ($match.Groups[1].Value -eq "Date") { continue }
-
     $dateStr = $match.Groups[1].Value.Trim()
+    $type = $match.Groups[2].Value.Trim()
     $name = $match.Groups[3].Value.Trim()
     $amountStr = $match.Groups[4].Value.Trim()
     $currency = $match.Groups[5].Value.Trim()
     $category = $match.Groups[6].Value.Trim()
     $account = $match.Groups[7].Value.Trim()
     $notes = $match.Groups[8].Value.Trim().replace(",", ".") # Update to your locale format if needed
-
-    # If a $category is (Transfer), replace it with Cashew-specific "Balance Correction" category
-    if ($category -eq "(Transfer)") {
-        $category = "Balance Correction"
-    }
 
     # Parse Date (dd.MM.yy -> yyyy-MM-dd HH:mm:ss)
     try {
@@ -69,36 +83,28 @@ foreach ($match in $regexMatches) {
         $outputDate = $dateStr
     }
 
-    # Parse Amount, remove extra separators
-    # Format: -1.000,50 -> Output: -1000,50
-    $calcAmountStr = $amountStr -replace '\s+', ''
-    $calcAmountStr = $calcAmountStr.Replace('.', '')
-    
-    # Calculation requires dot decimal
-    $cleanAmountStr = $calcAmountStr.Replace(',', '.')
+    # Parse Amount (European format: -1.000,50 -> -1000.50)
+    $cleanAmountStr = ConvertTo-BluecoinsAmount $amountStr
     $amountVal = $cleanAmountStr -as [double]
 
     # Determine Income (true/false)
-    if ($amountVal -gt 0) {
-        $income = "true"
-    }
-    else {
-        $income = "false"
-    }
+    $income = if ($amountVal -gt 0) { "true" } else { "false" }
 
     # Clean up Notes
     $notes = $notes -replace '\s+', ' '
     $notes = $notes.Trim()
 
     # Determine category mapping
-    if ($category -eq "Balance Correction") {
-        $categoryName = $category
-        $subcategoryName = ""
-    }
-    else {
+    $mapKey = "$type|$category"
+    if ($categoryMapping.ContainsKey($mapKey)) {
+        $map = $categoryMapping[$mapKey]
+        $categoryName = $map.cashew_category
+        $subcategoryName = $map.cashew_subcategory
+    } else {
+        Write-Warning "No mapping found for: type='$type' category='$category'. Leaving category empty."
         $categoryName = ""
         $subcategoryName = $category
-    }    
+    }
 
     # Construct object mapping to template
     $cashewTransaction = [PSCustomObject]@{
@@ -119,7 +125,7 @@ foreach ($match in $regexMatches) {
         'objective' = ""
     }
 
-    $cashewData += $cashewTransaction
+    $cashewData.Add($cashewTransaction)
 }
 
 # Export to CSV w/ Comma delimiter

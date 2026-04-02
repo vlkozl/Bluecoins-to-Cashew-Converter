@@ -11,44 +11,44 @@
 .EXAMPLE
     .\Create-Categories.ps1 -bluecoinsFile "transactions.html" -categoriesFile "Bluecoins Categories.md"
 #>
+[CmdletBinding()]
 param(
-    [CmdletBinding()]
-    [Parameter(Mandatory = $true)] $bluecoinsFile,
-    [Parameter(Mandatory = $true)] $categoriesFile
+    [Parameter(Mandatory = $true)]
+    [ArgumentCompleter({
+        param($cmd, $param, $word)
+        Get-ChildItem -Path ".\bluecoins\" -Filter "*.html" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like "$word*" } |
+            ForEach-Object { $_.Name }
+    })]
+    [string]$bluecoinsFile,
+
+    [Parameter(Mandatory = $true)]
+    [ArgumentCompleter({
+        param($cmd, $param, $word)
+        Get-ChildItem -Path ".\" -Filter "*.md" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like "$word*" } |
+            ForEach-Object { $_.Name }
+    })]
+    [string]$categoriesFile
 )
+
+Import-Module (Join-Path $PSScriptRoot "Common.psm1") -Force
 
 # Construct full paths
 $bluecoinsFile = Join-Path ".\bluecoins" $bluecoinsFile
 $outDir = ".\"
 $categoriesFile = Join-Path $outDir $categoriesFile
 
-# Create Out directory if it doesn't exist
-if (-not (Test-Path $outDir)) {
-    New-Item -ItemType Directory -Path $outDir | Out-Null
-    Write-Host "Created directory: $outDir" -ForegroundColor Cyan
-}
-
-# Check if input file exists
-if (-not (Test-Path $bluecoinsFile)) {
-    Write-Error "Input file '$bluecoinsFile' not found."
-    exit 1
-}
+Assert-FileExists -Path $bluecoinsFile -Label "Input file"
 
 # Read content
 $content = Get-Content $bluecoinsFile -Raw -Encoding UTF8
 
-# Regex to parse rows - extract category (group 6)
-# Table structure: <tr>...<td>Date</td><td>Type</td><td>Name</td><td>Amount</td><td>Currency</td><td>Category</td><td>Account</td><td class="notes">Notes</td>...</tr>
-$pattern = '(?s)<tr>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td.*?>(.*?)</td>\s*</tr>'
-
-$regexMatches = [regex]::Matches($content, $pattern)
+$regexMatches = Get-BluecoinsRows -Content $content
 
 $categoryStats = @{}  # hashtable to store: key=category, value=@{type=..., count=...}
 
 foreach ($match in $regexMatches) {
-    # Skip header row
-    if ($match.Groups[1].Value -eq "Date") { continue }
-
     $type = $match.Groups[2].Value.Trim()
     $category = $match.Groups[6].Value.Trim()
     
@@ -79,8 +79,8 @@ foreach ($match in $regexMatches) {
 }
 
 # Group by general category and sort by count
-$expenseCategories = @()
-$incomeCategories = @()
+$expenseCategories = [System.Collections.Generic.List[object]]::new()
+$incomeCategories = [System.Collections.Generic.List[object]]::new()
 
 foreach ($stat in $categoryStats.Values) {
     $item = @{
@@ -89,8 +89,8 @@ foreach ($stat in $categoryStats.Values) {
     }
     
     switch ($stat.general) {
-        "Expenses" { $expenseCategories += $item }
-        "Income" { $incomeCategories += $item }
+        "Expenses" { $expenseCategories.Add($item) }
+        "Income" { $incomeCategories.Add($item) }
     }
 }
 

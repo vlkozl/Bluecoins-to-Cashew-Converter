@@ -11,28 +11,36 @@
 .EXAMPLE
     .\Verify.ps1 -bluecoinsFile "transactions.html" -cashewFile "cashew_import.csv"
 #>
+[CmdletBinding()]
 param(
-    [CmdletBinding()]
-    [Parameter(Mandatory = $true)] $bluecoinsFile,
-    [Parameter(Mandatory = $true)] $cashewFile
+    [Parameter(Mandatory = $true)]
+    [ArgumentCompleter({
+        param($cmd, $param, $word)
+        Get-ChildItem -Path ".\bluecoins\" -Filter "*.html" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like "$word*" } |
+            ForEach-Object { $_.Name }
+    })]
+    [string]$bluecoinsFile,
+
+    [Parameter(Mandatory = $true)]
+    [ArgumentCompleter({
+        param($cmd, $param, $word)
+        Get-ChildItem -Path ".\cashew\" -Filter "*.csv" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like "$word*" } |
+            ForEach-Object { $_.Name }
+    })]
+    [string]$cashewFile
 )
 
+
+Import-Module (Join-Path $PSScriptRoot "Common.psm1") -Force
 
 # Construct full paths
 $bluecoinsFile = Join-Path ".\bluecoins" $bluecoinsFile
 $cashewFile = Join-Path ".\cashew" $cashewFile
 
-# Check if Bluecoins file exists
-if (-not (Test-Path $bluecoinsFile)) {
-    Write-Error "Bluecoins file '$bluecoinsFile' not found."
-    exit 1
-}
-
-# Check if Cashew file exists
-if (-not (Test-Path $cashewFile)) {
-    Write-Error "Cashew file '$cashewFile' not found."
-    exit 1
-}
+Assert-FileExists -Path $bluecoinsFile -Label "Bluecoins file"
+Assert-FileExists -Path $cashewFile -Label "Cashew file"
 
 # CSV delimiter used in Cashew CSV
 $csvDelimiter = ','
@@ -40,31 +48,19 @@ $csvDelimiter = ','
 Write-Host "Verifying conversion statistics..."
 
 # --- Analyze Input (HTML) ---
-if (-not (Test-Path $bluecoinsFile)) {
-    Write-Error "Input file '$bluecoinsFile' not found."
-    exit 1
-}
-
 $content = Get-Content $bluecoinsFile -Raw -Encoding UTF8
-# Regex to parse rows (same as conversion script)
-$pattern = '(?s)<tr>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*<td.*?>(.*?)</td>\s*</tr>'
-$mymatches = [regex]::Matches($content, $pattern)
+$AllMatches = Get-BluecoinsRows -Content $content
 
 $inputCount = 0
 [decimal]$bluecoinsSum = 0.0
 
-foreach ($match in $mymatches) {
-    if ($match.Groups[1].Value -eq "Date") { continue }
-    
+foreach ($match in $AllMatches) {
     $inputCount++
 
-    $amountStr = $match.Groups[4].Value.Trim() -replace '\s+', ''
-    
-    # Parse Amount, remove extra separators (European format: 1.000,50)
-    $cleanAmountStr = $amountStr.Replace('.', '').Replace(',', '.')
+    $amountStr = $match.Groups[4].Value.Trim()
 
     try {
-        [decimal]$cleanAmount = $cleanAmountStr
+        [decimal]$cleanAmount = ConvertTo-BluecoinsAmount $amountStr
         $bluecoinsSum += $cleanAmount
     }
     catch {
