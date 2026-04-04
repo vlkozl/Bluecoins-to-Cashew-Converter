@@ -34,8 +34,8 @@ param(
 
 Import-Module (Join-Path $PSScriptRoot "Common.psm1") -Force
 
-$BluecoinsDir  = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\bluecoins"))
-$CashewDir     = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\cashew"))
+$BluecoinsDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\bluecoins"))
+$CashewDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\cashew"))
 $CategoriesDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\categories"))
 
 Initialize-Directory -Path $BluecoinsDir
@@ -115,8 +115,19 @@ foreach ($match in $regexMatches) {
     $mapKey = "$type|$category"
     if ($categoryMapping.ContainsKey($mapKey)) {
         $map = $categoryMapping[$mapKey]
-        $categoryName = $map.cashew_category
-        $subcategoryName = $map.cashew_subcategory
+
+        # Bluecoins only need subcategory for normal transactions, but for transfers we want to use the category as subcategory in Cashew and ignore the category.
+        # This is because Cashew doesn't have a concept of transfer category, but we want to preserve the information from Bluecoins.
+        if (!($mapKey -eq 'Transfer|(Transfer)')) {
+            $categoryName = $subcategoryName
+            $subcategoryName = ''
+            $categoryName = $map.cashew_subcategory
+            $subcategoryName = ''
+        }        
+        else {
+            $categoryName = $map.cashew_category
+            $subcategoryName = $map.cashew_subcategory
+        } 
         $color = $map.color
         $icon = $map.icon
     }
