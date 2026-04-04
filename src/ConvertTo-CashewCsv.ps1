@@ -117,11 +117,15 @@ foreach ($match in $regexMatches) {
         $map = $categoryMapping[$mapKey]
         $categoryName = $map.cashew_category
         $subcategoryName = $map.cashew_subcategory
+        $color = $map.color
+        $icon = $map.icon
     }
     else {
         Write-Warning "No mapping found for: type='$type' category='$category'. Leaving category empty."
         $categoryName = ""
         $subcategoryName = $category
+        $color = ""
+        $icon = ""
     }
 
     # Construct object mapping to template
@@ -136,8 +140,8 @@ foreach ($match in $regexMatches) {
         'type'             = "null"
         'category name'    = $categoryName
         'subcategory name' = $subcategoryName
-        'color'            = ""
-        'icon'             = ""
+        'color'            = $color
+        'icon'             = $icon
         'emoji'            = ""
         'budget'           = ""
         'objective'        = ""
