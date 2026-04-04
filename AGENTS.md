@@ -6,9 +6,16 @@ This file provides guidance to AI coding agents working with this repository.
 
 PowerShell utility that converts [Bluecoins](http://bluecoinsapp.com/) HTML transaction exports into [Cashew](https://github.com/jameskokoska/Cashew) CSV format for import.
 
+## References
+
+- [Cashew FAQ](https://cashewapp.web.app/faq.html) — Official Cashew app help and import/export documentation
+- [Cashew GitHub](https://github.com/jameskokoska/Cashew) — Source code for the Cashew app (repo: `jameskokoska/Cashew`)
+
 ## Tools
 
 **Code search:** Use Serena MCP tools first (`find_symbol`, `search_for_pattern`, `get_symbols_overview`, etc.) for any navigation or search task. Fall back to Grep only if Serena is unavailable or returns no results.
+
+**Cashew source/references:** Use the GitHub MCP (`get_file_contents`, `search_code`, `list_directory`, etc.) to fetch source code or reference files from `jameskokoska/Cashew` when you need to understand Cashew's expected CSV format, field semantics, or import behavior.
 
 ## Commands
 
