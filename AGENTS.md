@@ -6,6 +6,10 @@ This file provides guidance to AI coding agents working with this repository.
 
 PowerShell utility that converts [Bluecoins](http://bluecoinsapp.com/) HTML transaction exports into [Cashew](https://github.com/jameskokoska/Cashew) CSV format for import.
 
+## Tools
+
+**Code search:** Use Serena MCP tools first (`find_symbol`, `search_for_pattern`, `get_symbols_overview`, etc.) for any navigation or search task. Fall back to Grep only if Serena is unavailable or returns no results.
+
 ## Commands
 
 All scripts require `pwsh` (cross-platform PowerShell). Use `-ExecutionPolicy Bypass` if needed on Windows.
