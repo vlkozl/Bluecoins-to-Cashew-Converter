@@ -53,7 +53,7 @@ $csvDelimiter = ','
 $mappingFile = Join-Path $CategoriesDir "category-mapping.csv"
 $categoryMapping = @{}
 if (Test-Path $mappingFile) {
-    Import-Csv $mappingFile | ForEach-Object {
+    Import-Csv $mappingFile  -Delimiter "," | ForEach-Object {
         $key = "$($_.bluecoins_type)|$($_.bluecoins_subcategory)"
         $categoryMapping[$key] = $_
     }
