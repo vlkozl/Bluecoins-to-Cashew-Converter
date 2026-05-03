@@ -2,7 +2,7 @@
 archive/
 bluecoins/
 cashew/
-categories/
+tools/
 
 # git worktrees
 .worktrees/
