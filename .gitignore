@@ -4,6 +4,9 @@ bluecoins/
 cashew/
 categories/
 
+# git worktrees
+.worktrees/
+
 # IDE and editor settings
 .claude/
 .vscode/
