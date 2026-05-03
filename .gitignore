@@ -7,4 +7,5 @@ categories/
 # IDE and editor settings
 .claude/
 .vscode/
+.serena/
 docs/
