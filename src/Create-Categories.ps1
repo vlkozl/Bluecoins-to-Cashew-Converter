@@ -25,7 +25,7 @@ param(
     [Parameter(Mandatory = $true)]
     [ArgumentCompleter({
         param($cmd, $param, $word)
-        Get-ChildItem -Path ".\" -Filter "*.md" -ErrorAction SilentlyContinue |
+        Get-ChildItem -Path ".\tools\" -Filter "*.md" -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -like "$word*" } |
             ForEach-Object { $_.Name }
     })]
@@ -35,12 +35,12 @@ param(
 Import-Module (Join-Path $PSScriptRoot "Common.psm1") -Force
 
 $BluecoinsDir  = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\bluecoins"))
-$CategoriesDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\categories"))
-Initialize-Directory -Path $CategoriesDir
+$ToolsDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\tools"))
+Initialize-Directory -Path $ToolsDir
 
 # Construct full paths
-$bluecoinsFile  = Join-Path $BluecoinsDir  $bluecoinsFile
-$categoriesFile = Join-Path $CategoriesDir $categoriesFile
+$bluecoinsFile  = Join-Path $BluecoinsDir $bluecoinsFile
+$categoriesFile = Join-Path $ToolsDir     $categoriesFile
 
 Assert-FileExists -Path $bluecoinsFile -Label "Input file"
 
@@ -83,7 +83,8 @@ foreach ($match in $regexMatches) {
 
 # Group by general category and sort by count
 $expenseCategories = [System.Collections.Generic.List[object]]::new()
-$incomeCategories = [System.Collections.Generic.List[object]]::new()
+$incomeCategories  = [System.Collections.Generic.List[object]]::new()
+$otherCategories   = [System.Collections.Generic.List[object]]::new()
 
 foreach ($stat in $categoryStats.Values) {
     $item = @{
@@ -93,7 +94,8 @@ foreach ($stat in $categoryStats.Values) {
     
     switch ($stat.general) {
         "Expenses" { $expenseCategories.Add($item) }
-        "Income" { $incomeCategories.Add($item) }
+        "Income"   { $incomeCategories.Add($item) }
+        default    { $otherCategories.Add($item) }
     }
 }
 
@@ -127,12 +129,26 @@ foreach ($cat in $incomeCategories) {
 }
 $markdown += ""
 
+# Other / Transfer section
+if ($otherCategories.Count -gt 0) {
+    $markdown += "## Other / Transfer"
+    $markdown += ""
+    foreach ($cat in $otherCategories) {
+        $markdown += "- $($cat.name)"
+    }
+    $markdown += ""
+    Write-Warning "$($otherCategories.Count) category type(s) were not Expense or Income and are listed under 'Other / Transfer'."
+}
+
 # Write to file
 $markdown | Out-File -FilePath $categoriesFile -Encoding UTF8
 
-$totalCategories = $expenseCategories.Count + $incomeCategories.Count
+$totalCategories = $expenseCategories.Count + $incomeCategories.Count + $otherCategories.Count
 Write-Host "Categories extraction complete." -ForegroundColor Green
 Write-Host "  Expenses: $($expenseCategories.Count)" -ForegroundColor Cyan
 Write-Host "  Income: $($incomeCategories.Count)" -ForegroundColor Cyan
+if ($otherCategories.Count -gt 0) {
+    Write-Host "  Other / Transfer: $($otherCategories.Count)" -ForegroundColor Yellow
+}
 Write-Host "  Total: $totalCategories categories" -ForegroundColor Cyan
 Write-Host "Output saved to $categoriesFile" -ForegroundColor Green

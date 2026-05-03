@@ -16,9 +16,11 @@ basic verification.
 | ---- | ------- |
 | `src/ConvertTo-CashewCsv.ps1` | Primary converter (HTML → Cashew CSV) |
 | `src/Verify.ps1` | Verification script |
-| `src/Create-Categories.ps1` | Extracts Bluecoins categories to markdown |
+| `src/Create-Categories.ps1` | Extracts Bluecoins subcategories to markdown (from HTML) |
+| `src/Create-CategoryGroups.ps1` | Extracts Bluecoins Category Group Names to markdown (from CSV) |
+| `src/Create-Accounts.ps1` | Extracts Bluecoins account names to markdown (from HTML) |
 | `src/Create-CategoryMapping.ps1` | Scaffolds category mapping CSV |
-| `categories/category-mapping.csv` | Maps Bluecoins categories → Cashew categories |
+| `tools/category-mapping.csv` | Maps Bluecoins categories → Cashew categories |
 | `template/cashew-template2.csv` | CSV format reference |
 
 ## :memo: Important conventions
@@ -35,7 +37,7 @@ Adjust to your needs in `src/ConvertTo-CashewCsv.ps1`
 1. Export Bluecoins transactions in HTML format. Exclude VOID transactions.
 2. Use `src/Create-Categories.ps1` to extract a list of categories used in Bluecoins as a markdown file.
 3. (Optional) Manually create matching categories and subcategories in the Cashew app using the markdown from the previous step.
-4. Use `src/Create-CategoryMapping.ps1` to scaffold `categories/category-mapping.csv` from the HTML export.
+4. Use `src/Create-CategoryMapping.ps1` to scaffold `tools/category-mapping.csv` from the HTML export.
 5. Fill in the `cashew_category` column in `category-mapping.csv` to map each Bluecoins category to its Cashew equivalent.
 6. Use `src/ConvertTo-CashewCsv.ps1` to convert transactions into Cashew CSV format.
 7. (Optional) Use `src/Verify.ps1` to confirm the conversion is correct.
@@ -47,6 +49,12 @@ Extract categories from Bluecoins HTML:
 
 ```powershell
 pwsh src/Create-Categories.ps1 -bluecoinsFile transactions.html -categoriesFile bluecoins_categories.md
+```
+
+Extract Category Group Names from Bluecoins CSV export (parent categories, not available in HTML):
+
+```powershell
+pwsh src/Create-CategoryGroups.ps1 -bluecoinsFile transactions.csv -groupsFile bluecoins_category_groups.md
 ```
 
 Scaffold category mapping CSV (re-run without `-Overwrite` to preserve existing mappings):

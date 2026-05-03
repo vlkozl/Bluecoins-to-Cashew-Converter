@@ -52,7 +52,7 @@ function Initialize-Directory {
 .PARAMETER Path
     The full path to the directory to ensure exists.
 .EXAMPLE
-    Initialize-Directory -Path "$PSScriptRoot\..\categories"
+    Initialize-Directory -Path "$PSScriptRoot\..\tools"
 #>
     param([string]$Path)
     if (-not (Test-Path $Path)) {
@@ -77,4 +77,23 @@ function Assert-FileExists {
     }
 }
 
-Export-ModuleMember -Function Get-BluecoinsRows, ConvertTo-BluecoinsAmount, Assert-FileExists, Initialize-Directory
+function Protect-CsvField {
+<#
+.SYNOPSIS
+    Sanitizes a field value for safe use in a comma-delimited CSV exported with -UseQuotes Never.
+.DESCRIPTION
+    Replaces any commas in the value with " - " to prevent CSV row corruption.
+    Returns an empty string for null input.
+.PARAMETER Value
+    The field value to sanitize.
+.OUTPUTS
+    [string]
+.EXAMPLE
+    Protect-CsvField "House, Garden"  # returns "House - Garden"
+#>
+    param([string]$Value)
+    if ([string]::IsNullOrEmpty($Value)) { return "" }
+    $Value -replace ',\s*', ' - '
+}
+
+Export-ModuleMember -Function Get-BluecoinsRows, ConvertTo-BluecoinsAmount, Assert-FileExists, Initialize-Directory, Protect-CsvField

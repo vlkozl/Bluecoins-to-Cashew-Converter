@@ -36,11 +36,11 @@ Import-Module (Join-Path $PSScriptRoot "Common.psm1") -Force
 
 $BluecoinsDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\bluecoins"))
 $CashewDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\cashew"))
-$CategoriesDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\categories"))
+$ToolsDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\tools"))
 
 Initialize-Directory -Path $BluecoinsDir
 Initialize-Directory -Path $CashewDir
-Initialize-Directory -Path $CategoriesDir
+Initialize-Directory -Path $ToolsDir
 
 # Construct full paths
 $bluecoinsFile = Join-Path $BluecoinsDir $bluecoinsFile
@@ -50,7 +50,7 @@ $cashewFile = Join-Path $CashewDir $cashewFile
 $csvDelimiter = ','
 
 # Load category mapping
-$mappingFile = Join-Path $CategoriesDir "category-mapping.csv"
+$mappingFile = Join-Path $ToolsDir "category-mapping.csv"
 $categoryMapping = @{}
 if (Test-Path $mappingFile) {
     Import-Csv $mappingFile  -Delimiter "," | ForEach-Object {
@@ -116,18 +116,16 @@ foreach ($match in $regexMatches) {
     if ($categoryMapping.ContainsKey($mapKey)) {
         $map = $categoryMapping[$mapKey]
 
-        # Bluecoins only need subcategory for normal transactions, but for transfers we want to use the category as subcategory in Cashew and ignore the category.
-        # This is because Cashew doesn't have a concept of transfer category, but we want to preserve the information from Bluecoins.
-        if (!($mapKey -eq 'Transfer|(Transfer)')) {
-            $categoryName = $subcategoryName
-            $subcategoryName = ''
-            $categoryName = $map.cashew_subcategory
-            $subcategoryName = ''
-        }        
-        else {
-            $categoryName = $map.cashew_category
+        # For transfers: preserve both category and subcategory (Cashew has no transfer type).
+        # For normal transactions: use only cashew_subcategory as the Cashew category (no subcategory hierarchy).
+        if ($mapKey -eq 'Transfer|(Transfer)') {
+            $categoryName    = $map.cashew_category
             $subcategoryName = $map.cashew_subcategory
-        } 
+        }
+        else {
+            $categoryName    = $map.cashew_subcategory
+            $subcategoryName = ''
+        }
         $color = $map.color
         $icon = $map.icon
     }
@@ -148,9 +146,9 @@ foreach ($match in $regexMatches) {
         'note'             = $notes
         'date'             = $outputDate
         'income'           = $income
-        'type'             = "null"
-        'category name'    = $categoryName
-        'subcategory name' = $subcategoryName
+        'type'             = "null"  # Literal string "null" — matches cashew-template2.csv; Cashew expects this value
+        'category name'    = Protect-CsvField $categoryName
+        'subcategory name' = Protect-CsvField $subcategoryName
         'color'            = $color
         'icon'             = $icon
         'emoji'            = ""

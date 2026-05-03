@@ -31,6 +31,18 @@ pwsh -ExecutionPolicy Bypass -File src/ConvertTo-CashewCsv.ps1 -bluecoinsFile tr
 pwsh src/Create-Categories.ps1 -bluecoinsFile transactions.html -categoriesFile bluecoins_categories.md
 ```
 
+**Extract account names:**
+```PowerShell
+pwsh src/Create-Accounts.ps1 -bluecoinsFile transactions.html -accountsFile bluecoins_accounts.md
+# Add -Overwrite to regenerate from scratch
+```
+
+**Extract category group names (requires CSV export, not HTML):**
+```PowerShell
+pwsh src/Create-CategoryGroups.ps1 -bluecoinsFile transactions.csv -groupsFile bluecoins_category_groups.md
+# Add -Overwrite to regenerate from scratch
+```
+
 **Generate/update category mapping:**
 ```PowerShell
 pwsh src/Create-CategoryMapping.ps1 -bluecoinsFile transactions.html
@@ -50,8 +62,8 @@ There is no automated test suite — `Verify.ps1` is the primary validation tool
 
 Data flow:
 ```
-bluecoins/*.html → Create-CategoryMapping.ps1 → categories/category-mapping.csv (user edits)
-bluecoins/*.html + categories/category-mapping.csv → ConvertTo-CashewCsv.ps1 → cashew/*.csv → Verify.ps1
+bluecoins/*.html → Create-CategoryMapping.ps1 → tools/category-mapping.csv (user edits)
+bluecoins/*.html + tools/category-mapping.csv → ConvertTo-CashewCsv.ps1 → cashew/*.csv → Verify.ps1
 ```
 
 All scripts import `src/Common.psm1` which centralizes: the shared regex pattern, `ConvertTo-BluecoinsAmount`, `Assert-FileExists`, and `Initialize-Directory`. Changes to parsing logic belong there.
@@ -62,13 +74,17 @@ All scripts import `src/Common.psm1` which centralizes: the shared regex pattern
 
 **`src/Create-Categories.ps1`** — Extracts unique categories from HTML, groups by Expense/Income, outputs a markdown file sorted by frequency.
 
-**`src/Create-CategoryMapping.ps1`** — Scaffolds `categories/category-mapping.csv` from the HTML export. New rows get an empty `cashew_category` and `cashew_subcategory` copied from Bluecoins. Existing user-filled values are preserved on re-run (use `-Overwrite` to regenerate from scratch). Run this once before the first conversion, then fill in the `cashew_category` column manually.
+**`src/Create-Accounts.ps1`** — Extracts unique account names from HTML, outputs a markdown file in `tools/` sorted alphabetically. Preserves existing accounts on re-run; use `-Overwrite` to regenerate from scratch.
+
+**`src/Create-CategoryGroups.ps1`** — Extracts unique Category Group Names from a Bluecoins **CSV** export (not HTML — HTML omits parent categories). Groups by Expense/Income/Other, outputs a markdown file in `tools/`. Preserves existing entries on re-run; use `-Overwrite` to regenerate from scratch.
+
+**`src/Create-CategoryMapping.ps1`** — Scaffolds `tools/category-mapping.csv` from the HTML export. New rows get an empty `cashew_category` and `cashew_subcategory` copied from Bluecoins. Existing user-filled values are preserved on re-run (use `-Overwrite` to regenerate from scratch). Run this once before the first conversion, then fill in the `cashew_category` column manually.
 
 **`src/Common.psm1`** — Shared module: `Get-BluecoinsRows` (regex parser), `ConvertTo-BluecoinsAmount` (amount formatter), `Assert-FileExists`, `Initialize-Directory` (creates missing working directories).
 
 **`template/cashew-template2.csv`** — Reference for the expected CSV header and column order.
 
-**`categories/category-mapping.csv`** — Required at runtime. Maps `bluecoins_type|bluecoins_subcategory` → `cashew_category|cashew_subcategory`. Missing rows produce a warning and fall back to empty category.
+**`tools/category-mapping.csv`** — Required at runtime. Maps `bluecoins_type|bluecoins_subcategory` → `cashew_category|cashew_subcategory`. Missing rows produce a warning and fall back to empty category.
 
 ## Critical Implementation Details
 
@@ -82,11 +98,11 @@ All scripts import `src/Common.psm1` which centralizes: the shared regex pattern
 
 **CSV quoting:** Scripts use `-UseQuotes Never`. Commas inside field values will break imports. Verify.ps1 checks for this. If you change the delimiter or quoting, update `Verify.ps1` and `template/*` together.
 
-**Category mapping:** Driven entirely by `categories/category-mapping.csv` (columns: `bluecoins_type`, `bluecoins_subcategory`, `cashew_category`, `cashew_subcategory`). The Transfer→"Balance Correction" rule is in the CSV, not hardcoded. Missing mappings fall back to empty `category name` + original subcategory, with a warning.
+**Category mapping:** Driven entirely by `tools/category-mapping.csv` (columns: `bluecoins_type`, `bluecoins_subcategory`, `cashew_category`, `cashew_subcategory`). The Transfer→"Balance Correction" rule is in the CSV, not hardcoded. Missing mappings fall back to empty `category name` + original subcategory, with a warning.
 
 **Notes comma sanitization:** Commas in the notes field are replaced with `.` during conversion to prevent CSV corruption. This happens silently.
 
-**Directory structure:** Scripts resolve paths relative to CWD. Input HTML must be in `.\bluecoins\`, output CSV goes to `.\cashew\`, category mapping lives in `.\categories\`. All three directories are created automatically on first run via `Initialize-Directory`. Run scripts from the repo root.
+**Directory structure:** Scripts resolve paths relative to CWD. Input HTML must be in `.\bluecoins\`, output CSV goes to `.\cashew\`, category mapping lives in `.\tools\`. All three directories are created automatically on first run via `Initialize-Directory`. Run scripts from the repo root.
 
 **CSV columns (expected by Verify.ps1):**
 `account, amount, currency, title, note, date, income, type, category name, subcategory name, color, icon, emoji, budget, objective`

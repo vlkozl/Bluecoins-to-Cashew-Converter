@@ -2,7 +2,7 @@
 .SYNOPSIS
     Generates or updates the category mapping CSV for Bluecoins-to-Cashew conversion.
 .DESCRIPTION
-    Reads a Bluecoins HTML export and scaffolds categories/category-mapping.csv with
+    Reads a Bluecoins HTML export and scaffolds tools/category-mapping.csv with
     all unique bluecoins_type + bluecoins_subcategory pairs found. By default merges
     with an existing mapping so user-filled cashew_category values are preserved.
     Use -Overwrite to regenerate from scratch.
@@ -31,15 +31,15 @@ param(
 
 Import-Module (Join-Path $PSScriptRoot "Common.psm1") -Force
 
-$CategoriesDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\categories"))
-$BluecoinsDir  = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\bluecoins"))
-Initialize-Directory -Path $CategoriesDir
+$ToolsDir     = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\tools"))
+$BluecoinsDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\bluecoins"))
+Initialize-Directory -Path $ToolsDir
 Initialize-Directory -Path $BluecoinsDir
 
 # Construct paths
 $bluecoinsPath = Join-Path $BluecoinsDir $bluecoinsFile
 Assert-FileExists -Path $bluecoinsPath -Label "Input file"
-$mappingFile = Join-Path $CategoriesDir "category-mapping.csv"
+$mappingFile = Join-Path $ToolsDir "category-mapping.csv"
 
 # Load existing mapping (unless -Overwrite)
 $existingMapping = @{}   # key: "bluecoins_type|bluecoins_subcategory" -> PSCustomObject row
@@ -107,8 +107,15 @@ $allRows = $allRows | Sort-Object {
     $order
 }, cashew_category, cashew_subcategory
 
-# Write output CSV
-$allRows | Export-Csv -Path $mappingFile -NoTypeInformation -Delimiter ',' -Encoding UTF8 -UseQuotes Never
+# Write output CSV (sanitize all fields to prevent CSV corruption with -UseQuotes Never)
+$allRows | ForEach-Object {
+    [PSCustomObject]@{
+        bluecoins_type        = Protect-CsvField $_.bluecoins_type
+        bluecoins_subcategory = Protect-CsvField $_.bluecoins_subcategory
+        cashew_category       = Protect-CsvField $_.cashew_category
+        cashew_subcategory    = Protect-CsvField $_.cashew_subcategory
+    }
+} | Export-Csv -Path $mappingFile -NoTypeInformation -Delimiter ',' -Encoding UTF8 -UseQuotes Never
 
 # Console output
 Write-Host "Category mapping complete."

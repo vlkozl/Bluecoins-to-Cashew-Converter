@@ -108,6 +108,14 @@ foreach ($row in $csvData) {
     catch {
         Write-Warning "Could not parse CSV amount: '$($row.Amount)'"
     }
+
+    # Category field comma check
+    if ($row.'category name' -match ',') {
+        Write-Warning "CSV corruption: 'category name' contains a comma in row: title='$($row.title)', date='$($row.date)'"
+    }
+    if ($row.'subcategory name' -match ',') {
+        Write-Warning "CSV corruption: 'subcategory name' contains a comma in row: title='$($row.title)', date='$($row.date)'"
+    }
 }
 
 # --- Report ---
@@ -139,4 +147,12 @@ if ($incomeErrorCount -eq 0) {
 }
 else {
     Write-Host "Income Logic Check: FAIL ($incomeErrorCount errors)" -ForegroundColor Red
+}
+
+$commaFieldRows = @($csvData | Where-Object { $_.'category name' -match ',' -or $_.'subcategory name' -match ',' })
+if ($commaFieldRows.Count -eq 0) {
+    Write-Host "CSV Field Comma Check: PASS" -ForegroundColor Green
+}
+else {
+    Write-Host "CSV Field Comma Check: FAIL ($($commaFieldRows.Count) rows with commas in category fields)" -ForegroundColor Red
 }
